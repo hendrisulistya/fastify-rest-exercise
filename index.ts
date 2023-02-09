@@ -1,23 +1,42 @@
 import fastify from "fastify";
+import { Server, IncomingMessage, ServerResponse } from "http";
 
-const server = fastify();
+const server = fastify<Server,IncomingMessage, ServerResponse>();
 
+interface User {
+  id: Number,
+  username: string,
+  fullname: string,
+  email: string,
+}
 
-const database = [
-  { id: 1, username: 'abdul', email: 'adul@mail.com' },
-  { id: 2, username: 'budi', email: 'budi@mail.com' },
-  { id: 3, username: 'catur', email: 'catur@mail.com' },
+const database:User[] = [
+  { id: 1, username: 'abdul', fullname: 'Abdul Mutholib', email: 'adul@mail.com' },
+  { id: 2, username: 'budi', fullname: 'Budi Gunawan', email: 'budi@mail.com' },
+  { id: 3, username: 'catur', fullname: 'Catur Hadi Wibowo', email: 'catur@mail.com' },
 ];
 
-console.log(database.find(d => d.id === 2));
- 
+
+function generateID(){
+  const lastItem: any = database.at(-1);
+  return lastItem.id +1
+}
 
 server.get('/', async (request, reply) => {
   reply.send({ message: 'Welcome to the User database API!' });
 });
 
-server.get('/users', async (request, reply) => {
-  reply.send(database);
+server.get('/users/:name?', async (request, reply) => {
+  const { name }: any = request.params;
+  let result = database;
+  if (name) {
+    result = database.filter(user => user.fullname.toLowerCase().includes(name.toLowerCase()));
+    if(!result.length){
+      reply.status(404).send({error : "Spesific user not found"})
+    }
+  }
+
+  reply.send(result);
 });
 
 server.get('/user/:id', async (request:any , reply) => {
@@ -28,8 +47,14 @@ server.get('/user/:id', async (request:any , reply) => {
 
 server.post('/user', async (request, reply) => {
   const newUser: any = request.body;
+  const duplicate = database.filter(i => i.id === newUser.id)  
+  if (duplicate.length > 0) {
+    reply.status(400).send({ error: 'Duplicate ID' });
+    return;
+  }
+  newUser.id = generateID();
   database.push(newUser);
-  return { message: 'User added successfully' };
+  reply.send({ message: 'User added successfully' });
 });
 
 
